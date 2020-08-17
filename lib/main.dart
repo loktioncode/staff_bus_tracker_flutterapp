@@ -1,117 +1,542 @@
+import 'dart:async';
+import 'package:email_validator/email_validator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:page_transition/page_transition.dart';
 
-void main() {
-  runApp(MyApp());
-}
+import 'dash.dart';
+
+void main() => runApp(MyApp());
+
+enum AuthMode { LOGIN, SINGUP }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-        // This makes the visual density adapt to the platform that you run
-        // the app on. For desktop platforms, the controls will be smaller and
-        // closer together (more dense) than on mobile platforms.
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      debugShowCheckedModeBanner: false,
+      home: LoginPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class LoginPage extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _LoginPageState createState() => _LoginPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _LoginPageState extends State<LoginPage> {
+  // To adjust the layout according to the screen size
+  // so that our layout remains responsive ,we need to
+  // calculate the screen height
+  double screenHeight;
+  String email;
+  String password;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  void _pushPage(BuildContext context, Widget page) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => page),
+    );
   }
+
+  // Set intial mode to login
+  AuthMode _authMode = AuthMode.LOGIN;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
+      body: SingleChildScrollView(
+        child: Stack(
           children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+            lowerHalf(context),
+            upperHalf(context),
+            if (_authMode == AuthMode.LOGIN)
+              loginCard(context)
+            else
+              singUpCard(context),
+            pageTitle(),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  Widget pageTitle() {
+    return Container(
+      margin: EdgeInsets.only(top: 50),
+      child: Center(
+        child: Text(
+          "Bus Locator",
+          style: TextStyle(
+              fontSize: 34, color: Colors.white, fontWeight: FontWeight.w400),
+        ),
+      ),
+    );
+  }
+
+  Widget loginCard(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Container(
+          margin: EdgeInsets.only(top: screenHeight / 4),
+          padding: EdgeInsets.only(left: 10, right: 10),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            elevation: 8,
+            child: Padding(
+              padding: const EdgeInsets.all(30.0),
+              child: Form(
+                key: _formKey,
+                //autovalidate: _autoValidate,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        "Login",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 15,
+                    ),
+                    TextFormField(
+                        decoration: InputDecoration(
+                          labelText: "Your Email",
+                        ),
+                        validator: (String value) {
+                          final bool isValid = EmailValidator.validate(value);
+                          if (!isValid) {
+                            return 'Invalid email. add @domainname.com';
+                          }
+                        },
+                        //set state on saved
+                        onSaved: (String value) {
+                          email = value;
+                        }),
+                    SizedBox(
+                      height: 20,
+                    ),
+                    TextFormField(
+                        autofocus: true,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                        ),
+                        validator: (String value) {
+                          if (value.isEmpty) {
+                            return 'Password is Required';
+                          }
+                        },
+                        //set state on saved
+                        onSaved: (String value) {
+                          password = value;
+                        }),
+                    SizedBox(
+                      height: 20,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        FlatButton(
+                          child: Text("Login"),
+                          color: Color(0xFF4B9DFE),
+                          textColor: Colors.white,
+                          padding: EdgeInsets.only(
+                              left: 38, right: 38, top: 15, bottom: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5)),
+                          onPressed: () {
+                            if (_formKey.currentState.validate()) {
+                              _formKey.currentState.save(); //onSaved is called!
+                              login();
+                            }
+                          },
+                        )
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            SizedBox(
+              height: 40,
+            ),
+            Text(
+              "Don't have an account ?",
+              style: TextStyle(color: Colors.grey),
+            ),
+            FlatButton(
+              onPressed: () {
+                setState(() {
+                  _authMode = AuthMode.SINGUP;
+                });
+              },
+              textColor: Colors.black87,
+              child: Text("Create Account"),
+            )
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget singUpCard(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Container(
+          margin: EdgeInsets.only(top: screenHeight / 5),
+          padding: EdgeInsets.only(left: 10, right: 10),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            elevation: 8,
+            child: Padding(
+              padding: const EdgeInsets.all(30.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        "Create Account",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 15,
+                    ),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: "Your Name",
+                      ),
+                      validator: (String value) {
+                        if (value.isEmpty) {
+                          return 'Name is Required';
+                        }
+                      },
+                    ),
+                    SizedBox(
+                      height: 15,
+                    ),
+                    TextFormField(
+                        decoration: InputDecoration(
+                          labelText: "Your Email",
+                        ),
+                        validator: (String value) {
+                          final bool isValid = EmailValidator.validate(value);
+                          if (!isValid) {
+                            return 'Invalid email. add @domainname.com';
+                          }
+                        },
+                        //set state on saved
+                        onSaved: (String value) {
+                          email = value;
+                        }),
+                    SizedBox(
+                      height: 20,
+                    ),
+                    TextFormField(
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                        ),
+                        validator: (String value) {
+                          if (value.isEmpty) {
+                            return 'Password required !!!';
+                          }
+                        },
+                        //set state on saved
+                        onSaved: (String value) {
+                          password = value;
+                        }),
+                    SizedBox(
+                      height: 20,
+                    ),
+                    Text(
+                      "Password must be at least 8 characters and include a special character and number",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    SizedBox(
+                      height: 5,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: <Widget>[
+                        Expanded(
+                          child: Container(),
+                        ),
+                        FlatButton(
+                          child: Text("Sign Up"),
+                          color: Color(0xFF4B9DFE),
+                          textColor: Colors.white,
+                          padding: EdgeInsets.only(
+                              left: 38, right: 38, top: 15, bottom: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5)),
+                          onPressed: () {
+                            if (_formKey.currentState.validate()) {
+                              _formKey.currentState.save(); //onSaved is called!
+                              signUp(email, password);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            SizedBox(
+              height: 40,
+            ),
+            Text(
+              "Already have an account?",
+              style: TextStyle(color: Colors.grey),
+            ),
+            FlatButton(
+              onPressed: () {
+                setState(() {
+                  _authMode = AuthMode.LOGIN;
+                });
+              },
+              textColor: Colors.black87,
+              child: Text("Login"),
+            )
+          ],
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: FlatButton(
+            child: Text(
+              "Terms & Conditions",
+              style: TextStyle(
+                color: Colors.grey,
+              ),
+            ),
+            onPressed: () {},
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget upperHalf(BuildContext context) {
+    return Container(
+      height: screenHeight / 2,
+      color: Colors.blue,
+    );
+  }
+
+  Widget lowerHalf(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        height: screenHeight / 2,
+        color: Color(0xFFECF0F3),
+      ),
+    );
+  }
+
+  void login() async {
+    if (email.isNotEmpty && password.isNotEmpty) {
+      try {
+        AuthResult user = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: email, password: password);
+        //Navigator.of(context).pushReplacementNamed('/home');
+        if (user == null) {
+          showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  content: Container(
+                    height: 80.0,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                );
+              });
+        } else {
+          Navigator.push(context,
+              PageTransition(type: PageTransitionType.rotate, child: Menu()));
+          print('DONE');
+        }
+      } catch (error) {
+        switch (error.code) {
+          case "ERROR_USER_NOT_FOUND":
+            {
+              final String errorMsg = "User not Found. Please try again.";
+              showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      content: Container(
+                        height: 100.0,
+                        child: Center(
+                          child: Text(errorMsg,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                  fontSize: 16)),
+                        ),
+                      ),
+                    );
+                  });
+            }
+            break;
+          case "ERROR_WRONG_PASSWORD":
+            {
+              final String errorMsg = "Password doesn\'t match your email.";
+              showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      content: Container(
+                        height: 100.0,
+                        child: Center(
+                          child: Text(errorMsg,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                  fontSize: 16)),
+                        ),
+                      ),
+                    );
+                  });
+            }
+            break;
+          default:
+            {
+              final errorMsg = "";
+            }
+        }
+      }
+    }
+  }
+
+  Future<FirebaseUser> signUp(email, password) async {
+    if (email.isNotEmpty && password.isNotEmpty) {
+      showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              content: Container(
+                //width: 30,
+                height: 100,
+                child: Column(children: [
+                  const Center(child: CircularProgressIndicator()),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text('Creating Account ...',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueAccent,
+                              fontSize: 16)),
+                    ),
+                  ),
+                ]),
+              ),
+            );
+          });
+      try {
+        AuthResult user = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+        //login()
+        print("ADDED");
+        Timer(const Duration(seconds: 4), () {
+          login();
+          //Navigator.pop(context);
+        });
+      } catch (error) {
+        switch (error.code) {
+          case 'ERROR_EMAIL_ALREADY_IN_USE':
+            {
+              const errorMsg = 'This email is already in use.';
+              showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      content: Container(
+                        height: 100.0,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Text(errorMsg,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                    fontSize: 16)),
+                          ),
+                        ),
+                      ),
+                    );
+                  });
+            }
+            break;
+          case 'ERROR_WEAK_PASSWORD':
+            {
+              const errorMsg =
+                  'The password must be 6 characters long or more.';
+              showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      content: Container(
+                        height: 100.0,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Text(errorMsg,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                    fontSize: 16)),
+                          ),
+                        ),
+                      ),
+                    );
+                  });
+            }
+            break;
+          default:
+            {
+              var errorMsg = "";
+            }
+        }
+      }
+    }
   }
 }
